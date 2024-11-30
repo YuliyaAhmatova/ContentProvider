@@ -5,4 +5,10 @@
     <string name="number">Номер</string>
     <string name="message">Сообщение</string>
     <string name="send">Отправить</string>
+    <string name="add">Добавить</string>
+    <string name="contacts">Контакты</string>
+    <string name="exit">Exit</string>
+    <string name="searchcontact">searchContact</string>
+    <string name="search_e_t">Поиск</string>
+    <string name="find">Найти</string>
 </resources>

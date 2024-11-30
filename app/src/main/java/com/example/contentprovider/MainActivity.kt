@@ -2,11 +2,18 @@ package com.example.contentprovider
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.ContentProviderOperation
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds.Phone
+import android.provider.ContactsContract.CommonDataKinds.StructuredName
+import android.provider.ContactsContract.RawContacts
+import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +41,7 @@ class MainActivity : AppCompatActivity() {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
+        setSupportActionBar(binding.toolbarMain)
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
@@ -103,6 +111,61 @@ class MainActivity : AppCompatActivity() {
         })
     }
 
+    override fun onResume() {
+        super.onResume()
+        binding.addBTN.setOnClickListener {
+            if (ActivityCompat.checkSelfPermission(
+                    this@MainActivity,
+                    Manifest.permission.WRITE_CONTACTS
+                ) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                permissionWriteContract.launch(Manifest.permission.WRITE_CONTACTS)
+            } else {
+                addContact()
+                customAdapter!!.notifyDataSetChanged()
+                getContact()
+            }
+        }
+    }
+
+    private fun addContact() {
+        val newContactName = binding.newContactNameET.text.toString()
+        val newContactPhone = binding.newContactPhoneET.text.toString()
+        val listCPO = ArrayList<ContentProviderOperation>()
+
+        listCPO.add(
+            ContentProviderOperation.newInsert(ContactsContract.RawContacts.CONTENT_URI)
+                .withValue(RawContacts.ACCOUNT_TYPE, null)
+                .withValue(RawContacts.ACCOUNT_NAME, null)
+                .build()
+        )
+        listCPO.add(
+            ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, StructuredName.CONTENT_ITEM_TYPE)
+                .withValue(StructuredName.DISPLAY_NAME, newContactName)
+                .build()
+        )
+        listCPO.add(
+            ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                .withValueBackReference(ContactsContract.Data.RAW_CONTACT_ID, 0)
+                .withValue(ContactsContract.Data.MIMETYPE, Phone.CONTENT_ITEM_TYPE)
+                .withValue(Phone.NUMBER, newContactPhone)
+                .withValue(Phone.TYPE, Phone.TYPE_MOBILE)
+                .build()
+        )
+        Toast.makeText(this, "$newContactName добавлен в список контактов", Toast.LENGTH_LONG)
+            .show()
+        binding.newContactNameET.text.clear()
+        binding.newContactPhoneET.text.clear()
+        try {
+            contentResolver.applyBatch(ContactsContract.AUTHORITY, listCPO)
+        } catch (e: Exception) {
+            Log.e("Exception ", e.message!!)
+        }
+    }
+
     private fun callTheNumber(number: String?) {
         val intent = Intent(Intent.ACTION_CALL)
         intent.data = Uri.parse("tel:$number")
@@ -145,4 +208,37 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "В разрешении отказано...", Toast.LENGTH_LONG).show()
         }
     }
+
+    private val permissionWriteContract = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            Toast.makeText(this, "Получен доступ к записи контактов", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(this, "В разрешении отказано...", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+
+        when (item.itemId) {
+            R.id.exitMenuMain -> {
+                finishAffinity()
+                Toast.makeText(applicationContext, "Программа завершена", Toast.LENGTH_LONG).show()
+            }
+            R.id.searchMenuMain-> {
+                val intent = Intent(this, SearchActivity::class.java)
+                intent.putExtra("contactModelList", contactModelList as ArrayList<ContactModel>)
+                startActivity(intent)
+            }
+        }
+        return super.onOptionsItemSelected(item)
+    }
 }
+
+
